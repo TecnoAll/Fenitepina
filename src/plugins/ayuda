@@ -1,0 +1,26 @@
+sub {
+    my ($self, $msg) = @_;
+
+    my ($cmd) = $msg->{text} =~ m/^(\S+)/;
+    $cmd =~ s/\@//g;
+
+    my $help = "/clima - Clima de República Dominicana\n";
+    $help .= "/top - <año|all> Top de mmgs\n";
+    $help .= "/temblo - Temblores de tierra recientes en República Dominicana\n";
+    $help .= "/got - Cuenta regresiva próximo episodio de GoT\n";
+    $help .= "/fwd - Sugerencias para frases, utilizar dando replay al mensaje\n";
+    $help .= "/cars - Shitty Car Mods\n";
+    $help .= "/cuando - <add|del> <frase> Agregar como respuesta cuando digan la frase [Admins]\n";
+    $help .= "/fenite - <add frase|add regex> Agregar frases o regex [Admins]\n";
+    $help .= "/name - <nombre> Agregar o eliminar nombres [Admins]\n";
+    $help .= "/ayuda - Misma ayuda!\n";
+    $help .= "\nTambién puedes darle replay a mensajes con la frase *di lo tuyo*\n";
+
+    $help =~ s/\///g if($cmd eq "plain");
+
+    $self->sendMessage([
+        chat_id => $msg->{chat}{id},
+        text => $help,
+        parse_mode => 'Markdown'
+    ]);
+}

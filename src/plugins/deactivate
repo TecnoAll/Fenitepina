@@ -1,0 +1,57 @@
+sub {
+   use Fenite qw(query update insert);
+   use IO::Socket::UNIX;
+   use POSIX qw(strftime);
+
+   $current_time = strftime "%H%M", localtime;
+
+   my $SOCK_PATH = "$ENV{HOME}/fenite.sock";
+
+   my $socket = IO::Socket::UNIX->new(
+       Type => SOCK_STREAM(),
+       Peer => $SOCK_PATH,
+   );
+
+   my ($self, $msg) = @_;
+
+   my $response = $self->getChatMember([
+       chat_id => $msg->{chat}{id},
+       user_id => $msg->{from}{id}
+   ]);
+
+   if($response->{result}{status} ne "member") {
+       my $m = "/deactivate on|off <start> <end>";
+
+       my @param;
+       push(@param, $msg->{chat}{id});
+
+       if($msg->{text} =~ /on/) {
+          @times = $msg->{text} =~ /\w+\s(\d+)\s(\d+)/;
+
+          if($times[0] < 0 || $times[1] > 2400 || $times[0] > $times[1]) {
+            $m = "START > 0 and END < 2400 and START < END";
+          }else {
+            $m = "deactivate on $times[0] $times[1]";
+            push(@param, $times[0]);
+            push(@param, $times[1]);
+            insert("delete from fenite_active where chatid = ?", @param);
+            insert("insert or ignore into fenite_active (chatid, start, end) values (?,?,?)", @param);
+          }
+       }elsif($msg->{text} =~ /off/) {
+          $m = "deactivate off";
+          insert("delete from fenite_active where chatid = ?", @param);
+       }
+
+       $self->sendMessage([
+           chat_id => $msg->{chat}{id},
+           text => $m
+       ]);
+
+       print $socket "reload\n";
+   }else{
+       $self->sendMessage([
+           chat_id => $msg->{chat}{id},
+           text => "💩"
+       ]);
+   }
+}

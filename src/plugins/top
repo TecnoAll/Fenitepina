@@ -1,0 +1,46 @@
+sub {
+    use Fenite qw(query update insert);
+    use POSIX qw(strftime);
+
+    my ($self, $msg) = @_;
+
+    my ($cmd) = $msg->{text} =~ m/^(\S+)/;
+    $cmd =~ s/\@//g;
+
+    my $year = strftime "%Y", localtime;
+    $year = $msg->{text} if($msg->{text});
+
+    my $query = "select codename, count, firstname from fenite_mmg where chatid = ? and year = ?";
+    my @param;
+    push(@param, $msg->{chat}{id});
+
+    if($year eq "all") {
+        $query = "select codename, sum(count), firstname from fenite_mmg where chatid = ? group by codename, firstname";
+    }else{
+        push(@param, $year);
+    }
+    
+    my @mmg = query($query, @param);
+
+    my $listado = "";
+
+    my @sorted = sort {(split /\|/, $b)[1] <=> (split /\|/, $a)[1]} @mmg;
+
+    for(my $i = 0; $i < @sorted; $i++) {
+        chomp($sorted[$i]);
+        my @s = split(/\|/,$sorted[$i]);
+        $s[0] =~ s/^$msg->{chat}{id}\|//g;
+        if($s[2]) {
+            $listado .= "*$s[2]* \t➡ $s[1]\n"; 
+        }else{
+            $listado .= "*$s[0]* \t➡ $s[1]\n"; 
+        }  
+    }   
+
+    $self->sendMessage([
+        chat_id => $msg->{chat}{id},
+        text => "Top MMGs ($year) 😲🍆 \n\n" . $listado,
+        parse_mode => 'Markdown'
+    ]);
+}
+

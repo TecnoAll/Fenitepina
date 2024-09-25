@@ -1,0 +1,87 @@
+sub {
+    use Fenite qw(query update insert isOperator);
+    use IO::Socket::UNIX;
+
+    my $SOCK_PATH = "$ENV{HOME}/fenite.sock";
+
+    my $socket = IO::Socket::UNIX->new(
+        Type => SOCK_STREAM(),
+        Peer => $SOCK_PATH,
+    );
+
+    my ($self, $msg) = @_;
+
+    # Agregar frase
+    if($msg->{text} =~ /^add|^del/i && isOperator($msg->{from}{id})) {
+        my @param;
+        $msg->{text} =~ s/\\b//g;
+        if($msg->{reply_to_message} && $msg->{text} =~ /^add/) {
+            $msg->{text} =~ s/^add\s(.*)/$1/;
+
+            push(@param, $msg->{text});
+
+            if(query("select * from fenite_rep where key = ?", @param) > 0) {
+                $self->sendMessage([
+                    chat_id => $msg->{chat}{id},
+                    text => "Frase repetida\n"
+                ]);
+                return;
+            }
+
+            if($msg->{reply_to_message}{document}) {
+                push(@param, $msg->{reply_to_message}{document}{file_id});
+                push(@param, "document");
+            }elsif($msg->{reply_to_message}{photo}){
+		        if($msg->{reply_to_message}{photo}[2]) {
+                	push(@param, $msg->{reply_to_message}{photo}[2]{file_id});
+		        }else{
+                	push(@param, $msg->{reply_to_message}{photo}[1]{file_id});
+		        }
+                push(@param, "photo");
+            }elsif($msg->{reply_to_message}{voice}){
+                push(@param, $msg->{reply_to_message}{voice}{file_id});
+                push(@param, "voice");
+            }elsif($msg->{reply_to_message}{sticker}){
+                push(@param, $msg->{reply_to_message}{sticker}{file_id});
+                push(@param, "sticker");
+            }elsif($msg->{reply_to_message}{audio}){
+                push(@param, $msg->{reply_to_message}{audio}{file_id});
+                push(@param, "audio");
+            }elsif($msg->{reply_to_message}{video}){
+                push(@param, $msg->{reply_to_message}{video}{file_id});
+                push(@param, "video");
+            }else{
+                push(@param, $msg->{reply_to_message}{text});
+                push(@param, "message");
+            }
+
+            insert("insert or ignore into fenite_rep (key,frase,type) values (?,?,?)", @param);
+
+            $self->sendMessage([
+                chat_id => $msg->{chat}{id},
+                text => "Agregado\n"
+            ]);
+        }elsif($msg->{text} =~ /^del\s.*/) {
+            $msg->{text} =~ s/^del\s(.*)/$1/;
+            @param = ();
+            push(@param, $msg->{text});
+
+            if(query("select * from fenite_rep where upper(key) = upper(?)", @param) == 0) {
+                $self->sendMessage([
+                    chat_id => $msg->{chat}{id},
+                    text => "Frase no se encuentra\n"
+                ]);
+                return;
+            }
+
+            insert("delete from fenite_rep where upper(key) = upper(?)", @param);
+
+            $self->sendMessage([
+                chat_id => $msg->{chat}{id},
+                text => "Eliminado"
+            ]);
+        }
+
+        print $socket "reload\n";
+    }
+}

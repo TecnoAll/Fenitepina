@@ -1,0 +1,36 @@
+sub {
+    use POSIX qw(strftime);
+    use XML::RSSLite;
+    use LWP::Simple;
+    use Encode qw(encode);
+
+    my @url = (
+        "https://eumetview.eumetsat.int/static-images/MSG/PRODUCTS/H03B/WESTERNEUROPE/",
+        "https://eumetview.eumetsat.int/static-images/MSG/RGB/NATURALCOLOR/WESTERNEUROPE/"
+    );
+
+    my ($self, $msg) = @_;
+
+    for(my $i = 0; $i < @url; $i++) {
+        my $u = $url[$i];
+
+        my $response = get($u);
+
+        $response =~ s/\n//g;
+        $response =~ s/.*array_nom_imagen\[0\]\=\"(\w*)\"\s.*/$1/g;
+
+        my $img = "$u/IMAGESDisplay/$response";
+
+        $self->sendPhoto([
+            chat_id => $msg->{chat}{id},
+            photo => $img
+        ]);
+    }
+
+    my $t = get("https://wttr.in/Valladolid?format=4&m");
+    $self->sendMessage([
+        chat_id => $msg->{chat}{id},
+        text => encode("utf8", $t),
+        parse_mode => 'Markdown'
+    ]);
+}

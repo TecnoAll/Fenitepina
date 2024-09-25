@@ -1,0 +1,18 @@
+ sub {
+    use Fenite qw(isOperator);
+    use Data::Dumper;
+
+    my ($self, $msg) = @_;
+
+    if(isOperator($msg->{from}{id})) {
+        $self->sendMessage([
+            chat_id => $msg->{chat}{id},
+            text => Dumper($msg) . "\n"
+        ]);
+    }else{
+        $self->sendMessage([
+            chat_id => $msg->{chat}{id},
+            text => "💩"
+        ]);
+    }
+}
